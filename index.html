@@ -40,6 +40,9 @@ section{padding:70px 5%}
 label{display:block;font-size:13px;color:var(--mut);margin:16px 0 6px}
 select,input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#0b0b0d;color:#fff;font-size:15px;font-family:inherit}
 select:focus,input:focus{outline:1px solid var(--lil)}
+:root{color-scheme:dark}
+select{color-scheme:dark}
+option,optgroup{background:#16161a;color:#fff}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px}
 .cal b{text-align:center;font-size:12px;color:var(--mut);font-weight:500}
 .cal button{aspect-ratio:1;border-radius:10px;border:1px solid var(--line);background:#0b0b0d;color:#fff;cursor:pointer;font-family:inherit}
@@ -126,17 +129,7 @@ const CFG={
   pixNome:"Nome do titular",
   sinal:"50% do valor para garantir o horário; o restante no dia do atendimento.",
   inicio:8, fim:19,                 // horário de funcionamento
-  firebase:{apiKey:apiKey: "AIzaSyDhlLab78kT-ekD5Aq2msA8byG-gOGHWw8",
-
-  authDomain: "agenda-camila-94c59.firebaseapp.com",
-
-  projectId: "agenda-camila-94c59",
-
-  storageBucket: "agenda-camila-94c59.firebasestorage.app",
-
-  messagingSenderId: "917829255752",
-
-  appId: "1:917829255752:web:fb3f354d39761bc5718e7d",authDomain:"",projectId:"",appId:""}
+  firebase:{apiKey:"COLE_AQUI",authDomain:"",projectId:"",appId:""}
 };
 const SERV={
  "Maquiagem":["Maquiagem social","Maquiagem para festas e eventos","Maquiagem para aniversários","Maquiagem para casamentos","Maquiagem para formandas","Maquiagem para ensaios fotográficos","Maquiagem para debutantes","Maquiagem para madrinhas e convidadas","Maquiagem artística","Maquiagem para eventos especiais"],
@@ -166,13 +159,15 @@ const hoje=new Date();hoje.setHours(0,0,0,0);
 let vy=hoje.getFullYear(),vm=hoje.getMonth(),selD=null,selH=null,taken={};
 
 async function carregar(){
-  if(db){
-    try{
-      const s=await db.collection("slots").where("date",">=",iso(vy,vm,1)).where("date","<=",iso(vy,vm,31)).get();
-      taken={};s.forEach(d=>{const x=d.data();(taken[x.date]=taken[x.date]||new Set()).add(x.time)});
-    }catch(e){$("msg").textContent="Não foi possível carregar a agenda. Tente novamente."}
-  }
-  cal();
+  cal();slots();
+  if(!db)return;
+  try{
+    const q=db.collection("slots").where("date",">=",iso(vy,vm,1)).where("date","<=",iso(vy,vm,31)).get();
+    const s=await Promise.race([q,new Promise((_,r)=>setTimeout(()=>r(new Error("timeout")),10000))]);
+    taken={};s.forEach(d=>{const x=d.data();(taken[x.date]=taken[x.date]||new Set()).add(x.time)});
+    $("msg").textContent="";
+  }catch(e){console.error(e);$("msg").textContent="Não foi possível carregar os horários ocupados. Atualize a página."}
+  cal();slots();
 }
 function cal(){
   $("mesT").textContent=MESES[vm]+" "+vy;
