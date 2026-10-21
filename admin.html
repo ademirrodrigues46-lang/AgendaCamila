@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Painel | Agendamentos</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b0d;--card:#16161a;--lil:#b79ce6;--lil2:#8f6bd6;--mut:#a9a4b5;--line:#2a2733}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:#fff;font-family:'Poppins',Arial,sans-serif;min-height:100vh}
+h1,h2{font-family:'Playfair Display',Georgia,serif}
+.wrap{max-width:900px;margin:auto;padding:24px 5%}
+.btn{background:linear-gradient(135deg,var(--lil),var(--lil2));color:#0b0b0d;font-weight:600;border:0;border-radius:40px;padding:11px 24px;cursor:pointer;font-family:inherit;font-size:14px;text-decoration:none;display:inline-block}
+.btn.o{background:none;border:1px solid var(--lil);color:var(--lil)}
+.btn.r{background:none;border:1px solid #ff6b81;color:#ff6b81}
+input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#0b0b0d;color:#fff;font-size:15px;font-family:inherit;margin-top:10px}
+.login{max-width:380px;margin:12vh auto;background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px;text-align:center}
+.login h1{color:var(--lil);margin-bottom:6px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.top h1{color:var(--lil);font-size:28px}
+.dia{margin:22px 0 8px;color:var(--lil);font-weight:600;font-size:15px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.item .h{font-size:20px;font-weight:600;min-width:62px}
+.item .i{flex:1;min-width:180px}
+.item small{color:var(--mut);display:block}
+.act{display:flex;gap:8px}
+.msg{color:#ff8a9b;font-size:14px;margin-top:12px;min-height:20px}
+.hide{display:none}
+.vazio{color:var(--mut);text-align:center;padding:40px 0}
+</style>
+</head>
+<body>
+
+<div class="login" id="login">
+  <h1>Painel</h1>
+  <p style="color:var(--mut);font-size:14px">Acesso restrito</p>
+  <input id="em" type="email" placeholder="E-mail" autocomplete="username">
+  <input id="pw" type="password" placeholder="Senha" autocomplete="current-password">
+  <div class="msg" id="lm"></div>
+  <button class="btn" id="entrar" style="width:100%;margin-top:6px">Entrar</button>
+</div>
+
+<div class="wrap hide" id="app">
+  <div class="top">
+    <h1>Meus agendamentos</h1>
+    <div class="act"><button class="btn o" id="rec">Atualizar</button><button class="btn o" id="sair">Sair</button></div>
+  </div>
+  <div id="lista"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* Cole aqui o MESMO firebaseConfig usado no index.html */
+const FB={apiKey:apiKey: "AIzaSyDhlLab78kT-ekD5Aq2msA8byG-gOGHWw8",
+
+  authDomain: "agenda-camila-94c59.firebaseapp.com",
+
+  projectId: "agenda-camila-94c59",
+
+  storageBucket: "agenda-camila-94c59.firebasestorage.app",
+
+  messagingSenderId: "917829255752",
+
+  appId: "1:917829255752:web:fb3f354d39761bc5718e7d",authDomain:"",projectId:"",appId:""};
+firebase.initializeApp(FB);
+const auth=firebase.auth(),db=firebase.firestore();
+const $=id=>document.getElementById(id);
+const DIAS=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+
+$("entrar").onclick=async()=>{
+  $("lm").textContent="";
+  try{await auth.signInWithEmailAndPassword($("em").value.trim(),$("pw").value)}
+  catch(e){$("lm").textContent="E-mail ou senha incorretos."}
+};
+$("pw").onkeydown=e=>{if(e.key==="Enter")$("entrar").click()};
+$("sair").onclick=()=>auth.signOut();
+$("rec").onclick=()=>carregar();
+auth.onAuthStateChanged(u=>{
+  $("login").classList.toggle("hide",!!u);
+  $("app").classList.toggle("hide",!u);
+  if(u)carregar();
+});
+
+async function carregar(){
+  const l=$("lista");l.innerHTML='<p class="vazio">Carregando...</p>';
+  const d=new Date(),hoje=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  try{
+    const s=await db.collection("bookings").where("date",">=",hoje).orderBy("date").get();
+    const arr=s.docs.map(x=>({id:x.id,...x.data()})).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    l.innerHTML="";
+    if(!arr.length){l.innerHTML='<p class="vazio">Nenhum agendamento futuro.</p>';return}
+    let atual="";
+    arr.forEach(b=>{
+      if(b.date!==atual){
+        atual=b.date;const [y,m,dd]=b.date.split("-");
+        const t=document.createElement("div");t.className="dia";
+        t.textContent=`${DIAS[new Date(y,m-1,dd).getDay()]}, ${dd}/${m}/${y}`;l.appendChild(t);
+      }
+      const it=document.createElement("div");it.className="item";
+      const h=document.createElement("div");h.className="h";h.textContent=b.time;
+      const i=document.createElement("div");i.className="i";
+      const n=document.createElement("b");n.textContent=b.name;
+      const sv=document.createElement("small");sv.textContent=b.service;
+      const tl=document.createElement("small");tl.textContent=b.phone;
+      i.append(n,sv,tl);
+      const a=document.createElement("div");a.className="act";
+      const w=document.createElement("a");w.className="btn o";w.textContent="WhatsApp";w.target="_blank";w.rel="noopener";
+      const fone=b.phone.length<=11?"55"+b.phone:b.phone;
+      w.href=`https://wa.me/${fone}?text=${encodeURIComponent("Olá, "+b.name+"! Confirmando seu horário de "+b.service+" em "+b.date.split("-").reverse().join("/")+" às "+b.time+". 💜")}`;
+      const c=document.createElement("button");c.className="btn r";c.textContent="Cancelar";
+      c.onclick=()=>cancelar(b);
+      a.append(w,c);it.append(h,i,a);l.appendChild(it);
+    });
+  }catch(e){l.innerHTML='<p class="vazio">Sem permissão ou erro ao carregar. Confira as regras do Firestore.</p>'}
+}
+
+async function cancelar(b){
+  if(!confirm(`Cancelar o horário de ${b.name} (${b.date.split("-").reverse().join("/")} às ${b.time})? O horário voltará a ficar livre no site.`))return;
+  try{
+    const bt=db.batch();
+    bt.delete(db.collection("bookings").doc(b.id));
+    bt.delete(db.collection("slots").doc(b.date+"_"+b.time));
+    await bt.commit();carregar();
+  }catch(e){alert("Não foi possível cancelar. Tente novamente.")}
+}
+</script>
+</body>
+</html>
