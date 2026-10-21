@@ -55,7 +55,7 @@ input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--lin
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 /* Cole aqui o MESMO firebaseConfig usado no index.html */
-const FB={apiKey:apiKey: "AIzaSyDhlLab78kT-ekD5Aq2msA8byG-gOGHWw8",
+const FB={apiKey:"AIzaSyDhlLab78kT-ekD5Aq2msA8byG-gOGHWw8",
 
   authDomain: "agenda-camila-94c59.firebaseapp.com",
 
@@ -73,8 +73,24 @@ const DIAS=["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 
 $("entrar").onclick=async()=>{
   $("lm").textContent="";
-  try{await auth.signInWithEmailAndPassword($("em").value.trim(),$("pw").value)}
-  catch(e){$("lm").textContent="E-mail ou senha incorretos."}
+  $("lm").textContent="Entrando...";
+  try{await auth.signInWithEmailAndPassword($("em").value.trim(),$("pw").value);$("lm").textContent=""}
+  catch(e){
+    const m={
+      "auth/invalid-credential":"E-mail ou senha incorretos.",
+      "auth/wrong-password":"Senha incorreta.",
+      "auth/user-not-found":"Esse e-mail não está cadastrado no Firebase.",
+      "auth/invalid-email":"E-mail inválido.",
+      "auth/unauthorized-domain":"Falta autorizar este endereço no Firebase (Authentication > Configurações > Domínios autorizados).",
+      "auth/operation-not-allowed":"Ative o login E-mail/senha no Firebase (Authentication > Método de login).",
+      "auth/invalid-api-key":"A chave do Firebase (apiKey) está errada ou não foi colada neste arquivo.",
+      "auth/api-key-not-valid":"A chave do Firebase (apiKey) está errada ou não foi colada neste arquivo.",
+      "auth/network-request-failed":"Sem conexão com o Firebase. Verifique a internet.",
+      "auth/too-many-requests":"Muitas tentativas. Espere alguns minutos."
+    };
+    $("lm").textContent=(m[e.code]||"Erro ao entrar.")+" ["+(e.code||e.message)+"]";
+    console.error(e);
+  }
 };
 $("pw").onkeydown=e=>{if(e.key==="Enter")$("entrar").click()};
 $("sair").onclick=()=>auth.signOut();
